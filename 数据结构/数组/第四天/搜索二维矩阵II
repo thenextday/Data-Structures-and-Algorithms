@@ -1,0 +1,197 @@
+编写一个高效的算法来搜索 m x n 矩阵 matrix 中的一个目标值 target 。该矩阵具有以下特性：
+
+- 每行的元素从左到右升序排列。
+- 每列的元素从上到下升序排列。
+
+**示例 1：**
+
+![示例一图片](https://assets.leetcode-cn.com/aliyun-lc-upload/uploads/2020/11/25/searchgrid2.jpg)
+
+
+
+```
+输入：matrix = [[1,4,7,11,15],[2,5,8,12,19],[3,6,9,16,22],[10,13,14,17,24],[18,21,23,26,30]], target = 5
+输出：true
+```
+
+**示例 2：**
+
+![示例二图片](https://assets.leetcode-cn.com/aliyun-lc-upload/uploads/2020/11/25/searchgrid.jpg)
+
+```
+输入：matrix = [[1,4,7,11,15],[2,5,8,12,19],[3,6,9,16,22],[10,13,14,17,24],[18,21,23,26,30]], target = 20
+输出：false
+```
+
+> 方法一、暴力破解
+
+```java
+class Solution {
+    public boolean searchMatrix(int[][] matrix, int target) {
+        for (int mat [] : matrix) {
+            for (int ma : mat) {
+                if (ma == target) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+}
+```
+
+> 方法二、二分法搜索
+
+矩阵已经排过序，就需要使用二分法搜索以加快我们的算法。
+
+**算法：**
+首先，我们确保矩阵不为空。那么，如果我们迭代矩阵对角线，从当前元素对列和行搜索，我们可以保持从当前 (row,col)(row,col) 对开始的行和列为已排序。 因此，我们总是可以二分搜索这些行和列切片。我们以如下逻辑的方式进行 : 在对角线上迭代，二分搜索行和列，直到对角线的迭代元素用完为止（意味着我们可以返回 false ）或者找到目标（意味着我们可以返回 true ）。binary search 函数的工作原理和普通的二分搜索一样,但需要同时搜索二维数组的行和列。
+
+```java
+
+class Solution {
+
+    public boolean searchMatrix(int[][] matrix, int target) {
+        
+        //判断传入的数组是否为空
+        if (matrix == null || matrix.length == 0) {
+            return false;
+        }
+        
+        int min = Math.min(matrix.length, matrix[0].length);
+
+        for (int i = 0; i < min; i++) {
+            boolean rowFound = findTarget(matrix,i,target,true);
+            boolean columnFound = findTarget(matrix,i,target,false);
+            if (rowFound || columnFound) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    private boolean findTarget(int[][] matrix, int start, int target, boolean fond) {
+        int i = start;
+        int end = fond ? matrix[0].length - 1 : matrix.length - 1;
+        System.out.println(end);
+
+        while (end >= start) {
+            System.out.println("start: "+start);
+            System.out.println("end: "+end);
+            int mid = (start + end) / 2;
+            if (fond) {
+                if (matrix[i][mid] > target) {
+                    end = mid - 1;//注意在这里必须得有一个加一或者减一，不然的话会造成死循环，因为整型的乘除是不会包含小数的。
+                } else if (matrix[i][mid] < target) {
+                    start = mid + 1;
+                } else {
+                    return true;
+                }
+            } else {
+                if (matrix[mid][i] > target) {
+                    end = mid - 1;
+                } else if (matrix[mid][i] < target) {
+                    start = mid + 1;
+                } else {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+}
+```
+
+解析：由于题目中要求，每行的元素和每列的元素从左到右或者从上到下依次递增，所以可以分别进行行二分法查询和列二分法查询。
+
+> 方法三、搜索空间的减缩
+
+我们可以将已排序的二维矩阵划分为四个子矩阵，其中两个可能包含目标，其中两个肯定不包含。
+
+算法：
+由于该算法是递归操作的，因此可以通过它的基本情况和递归情况的正确性来判断它的正确性。
+
+基本情况 ：
+对于已排序的二维数组，有两种方法可以确定一个任意元素目标是否可以用常数时间判断。第一，如果数组的区域为零，则它不包含元素，因此不能包含目标。其次，如果目标小于数组的最小值或大于数组的最大值，那么矩阵肯定不包含目标值。
+
+递归情况：
+如果目标值包含在数组内，因此我们沿着索引行的矩阵中间列 ，matrix[row-1] [mid] < target < matrix[row] [mid] ，（很明显，如果我们找到 target ，我们立即返回 true）。现有的矩阵可以围绕这个索引分为四个子矩阵；左上和右下子矩阵不能包含目标（通过基本情况部分来判断），所以我们可以从搜索空间中删除它们 。另外，左下角和右上角的子矩阵是二维矩阵，因此我们可以递归地将此算法应用于它们。
+
+```java
+class Solution {
+    private int[][] matrix;
+    private int target;
+
+    private boolean searchRec(int left, int up, int right, int down) {
+        // this submatrix has no height or no width.
+        if (left > right || up > down) {
+            return false;
+            // `target` is already larger than the largest element or smaller
+            // than the smallest element in this submatrix.
+        } else if (target < matrix[up][left] || target > matrix[down][right]) {
+            return false;
+        }
+
+        int mid = left + (right-left)/2;
+
+        // Locate `row` such that matrix[row-1][mid] < target < matrix[row][mid]
+        int row = up;
+        while (row <= down && matrix[row][mid] <= target) {
+            if (matrix[row][mid] == target) {
+                return true;
+            }
+            row++;
+        }
+
+        return searchRec(left, row, mid-1, down) || searchRec(mid+1, up, right, row-1);
+    }
+
+    public boolean searchMatrix(int[][] mat, int targ) {
+        // cache input values in object to avoid passing them unnecessarily
+        // to `searchRec`
+        matrix = mat;
+        target = targ;
+
+        // an empty matrix obviously does not contain `target`
+        if (matrix == null || matrix.length == 0) {
+            return false;
+        }
+
+        return searchRec(0, 0, matrix[0].length-1, matrix.length-1);
+    }
+}
+```
+
+> 方法四、
+
+算法：
+首先，我们初始化一个指向矩阵左下角的 (row，col)(row，col) 指针。然后，直到找到目标并返回 true（或者指针指向矩阵维度之外的 (row，col)(row，col) 为止，我们执行以下操作：如果当前指向的值大于目标值，则可以 “向上” 移动一行。 否则，如果当前指向的值小于目标值，则可以移动一列。不难理解为什么这样做永远不会删减正确的答案；因为行是从左到右排序的，所以我们知道当前值右侧的每个值都较大。 因此，如果当前值已经大于目标值，我们知道它右边的每个值会比较大。也可以对列进行非常类似的论证，因此这种搜索方式将始终在矩阵中找到目标（如果存在）。
+
+```java
+class Solution {
+
+    public boolean searchMatrix(int[][] matrix, int target) {
+        if (matrix == null || matrix.length == 0) {
+            return false;
+        }
+
+        int column = 0;
+        int row = matrix.length - 1;
+
+        while (row >= 0 && column < matrix[0].length) {
+            if (matrix[row][column] > target) {
+                row--;
+            } else if (matrix[row][column] < target) {
+                column++;
+            } else {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+```
